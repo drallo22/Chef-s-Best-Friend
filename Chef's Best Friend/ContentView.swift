@@ -16,17 +16,17 @@ class RecipeViewModel: ObservableObject {
         recipes = [
             Recipe(
                 name: "Carbonara",
-                ingredients: ["Ingredient 1", "Ingredient 2"],
-                preparationSteps: ["Step 1", "Step 2"],
+                ingredients: ["Eggs", "Pasta"],
+                preparationSteps: ["Boil Pasta", "Add egg"],
                 cookingTime: "30 minutes",
                 servingSize: 4,
                 image: "carbonara"
             ),
             Recipe(
                 name: "Meatballs",
-                ingredients: ["Ingredient A", "Ingredient B"],
-                preparationSteps: ["Step X", "Step Y"],
-                cookingTime: "45 minutes",
+                ingredients: ["Minced Veal", "Breadcrumbs"],
+                preparationSteps: ["Form meat into ball", "Surround in breadcrumbs"],
+                cookingTime: "20 minutes",
                 servingSize: 2,
                 image: "meatballs"
 
@@ -56,26 +56,23 @@ struct RecipeView: View {
                 
                 Text(recipe.name)
                     .font(.title)
+                    .foregroundColor(.black)
                     .padding()
                 
                 HStack {
                     NavigationLink(destination: EditRecipeView(recipe: recipe)) {
                         NavigationLink(
                             destination: EditRecipeView(recipe: recipe)) {
-                                Label("Edit Recipe", systemImage: "")
-                                    .foregroundColor(.black)
+                                Label("Edit Recipe", systemImage: "pencil")
+                                    .foregroundColor(.black).padding(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 150))
                                 
                             }
                     }
                     
                     Button(action: {
-                        // Delete action
                     }) {
-                        Text("Delete")
-                            .padding()
-                            .background(Color.red)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
+                        Label("Delete", systemImage: "trash")
+                            .foregroundColor(.black)
                     }
                 }
                 Spacer()
@@ -132,7 +129,7 @@ struct EditRecipeView: View {
     var recipe: Recipe
     
     init(recipe: Recipe) {
-        self.recipe = recipe // Initialize the original recipe
+        self.recipe = recipe
         _editedRecipe = State(initialValue: recipe)
     }
     
@@ -173,7 +170,6 @@ struct EditRecipeView: View {
         }
         
         Button(action: {
-                        
                         saveChanges()
                     }) {
                         Text("Save Changes")
@@ -198,10 +194,12 @@ struct SearchRecipesView: View {
             
             TextField("Search", text: $searchText)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                
             
-            List {
+            ScrollView{
                 ForEach(recipes.filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }, id: \.name) { recipe in
                     RecipeView(recipe: recipe)
+                        .padding()
                 }
             }
         }
@@ -216,10 +214,41 @@ struct AddRecipeView: View {
     @ObservedObject var recipeViewModel: RecipeViewModel
     @Binding var isAddingRecipe: Bool
     @State private var newRecipe: Recipe = Recipe(name: "", ingredients: [], preparationSteps: [], cookingTime: "", servingSize: 1, image: "")
+    @State private var selectedImage: Image?
+
+    @State private var addImage = false
 
     var body: some View {
         NavigationView {
             Form {
+                Section(header: Text("Add an image")) {
+                    Button(action: {
+                        addImage=true
+                        openFilePicker()
+                                }) {
+                                    Text("Select Image")
+                                }
+                                
+                        .fileImporter(isPresented: .constant(addImage), allowedContentTypes: [.image]) { result in
+                            do {
+                                let fileURL = try result.get()
+                                
+                                if let image = loadImage(from: fileURL) {
+                                    selectedImage = Image(uiImage: image)
+                                }
+                            } catch {
+                                print("Error: \(error)")
+                            }
+                        }
+
+                        // Display the selected image
+                        if let selectedImage = selectedImage {
+                            selectedImage
+                                .resizable()
+                                .frame(width: 200, height: 200)
+                        }
+                   
+                }
                 Section(header: Text("Recipe Information")) {
                     TextField("Name", text: $newRecipe.name)
                     TextField("Cooking Time", text: $newRecipe.cookingTime)
@@ -247,6 +276,8 @@ struct AddRecipeView: View {
                         Text("Add Step")
                     }
                 }
+                
+               
             }
             .navigationBarTitle("Add Recipe")
             .navigationBarItems(trailing:
@@ -257,6 +288,20 @@ struct AddRecipeView: View {
             )
         }
     }
+    
+    func loadImage(from fileURL: URL) -> UIImage? {
+           do {
+               let data = try Data(contentsOf: fileURL)
+               return UIImage(data: data)
+           } catch {
+               print("Error loading image: \(error)")
+               return nil
+           }
+       }
+
+       func openFilePicker() {
+           
+       }
 }
 
 
@@ -268,10 +313,8 @@ class MenuViewModel: ObservableObject {
 
     func addSelectedRecipe(_ recipe: Recipe) {
         if let index = selectedRecipes.firstIndex(where: { $0.name == recipe.name }) {
-            // Recipe already exists, handle it as needed
             print("Recipe \(recipe.name) already exists in selectedRecipes.")
         } else {
-            // Recipe is not in the array, add it
             selectedRecipes.append(recipe)
             print("Added recipe \(recipe.name) to selectedRecipes.")
         }
@@ -287,7 +330,7 @@ struct MenuView: View {
 
     var body: some View {
             VStack {
-                TextField("Search Recipes", text: $searchText)
+                TextField("Search Meals", text: $searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding(.top,30)
                     
@@ -305,8 +348,9 @@ struct MenuView: View {
                                 Text("Add")
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
-                                    .background(Color.blue)
+                                    .background(Color.brown)
                                     .foregroundColor(.white)
+                                    .fontWeight(.black)
                                     .cornerRadius(5)
                             }
                         }
@@ -314,11 +358,10 @@ struct MenuView: View {
                 }
                 .listStyle(PlainListStyle())
                 
-                Text("Selected Recipes")
+                Text("Meals On The Menu")
                     .font(.title)
-                    .padding()
-                    .background(Color.brown)
-                    .foregroundColor(.white)
+                    .foregroundColor(.black)
+                    
                     
                     
                 
@@ -354,17 +397,27 @@ struct IngredientsView: View {
                     Text("No ingredients needed!")
                         .font(.title)
                         .foregroundColor(.black)
-                        .padding()
+                        
+                    Text("Add Meals to your menu to get the list of ingredients here!")
+                        .font(.headline)
+                        .foregroundColor(.black)
+                        .padding(.top,10)
                 } else {
                     Image("ingredients")
                         .resizable()
                         .frame(width: 200,height: 200)
+                    
+                    Text("Ingredients needed for meals on the menu!")
+                        .font(.headline)
+                        .foregroundColor(.black)
+                        .padding(.top,20)
+                        
                     List {
                         ForEach(allSelectedIngredients, id: \.self) { ingredient in
                             Text(ingredient)
                         }
                     }
-                    .padding(.top,80)
+                    .padding(.top,10)
                     .listStyle(PlainListStyle())
                     
                 }
@@ -381,7 +434,7 @@ struct ContentView: View {
     @StateObject private var menuViewModel = MenuViewModel()
     
     @State private var searchText = ""
-    @State private var isAddingRecipe = false // Add this state variable
+    @State private var isAddingRecipe = false
     
     var body: some View {
         VStack {
@@ -394,7 +447,7 @@ struct ContentView: View {
                                 destination: SearchRecipesView(recipes: $recipeViewModel.recipes, searchText: $searchText)) {
                                     Label("Search Recipes", systemImage: "magnifyingglass")
                                         .foregroundColor(.black)
-                                }
+                                }.padding(EdgeInsets(top: 0, leading: 30, bottom: 0, trailing: 0))
                             
                             Button(action: {
                                 isAddingRecipe = true
@@ -407,9 +460,7 @@ struct ContentView: View {
                         }
                         
                         ScrollView {
-                            ForEach(recipeViewModel.recipes.filter {
-                                searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText)
-                            }, id: \.name) { recipe in
+                            ForEach(recipeViewModel.recipes, id: \.name) { recipe in
                                 RecipeView(recipe: recipe)
                                     .padding()
                             }
@@ -429,7 +480,6 @@ struct ContentView: View {
                 }
                 .tag(0)
                 
-                // Tab 2: "Search"
                 NavigationView {
                     SearchRecipesView(recipes: $recipeViewModel.recipes, searchText: $searchText)
                         .navigationTitle("Search Recipes")
@@ -443,10 +493,9 @@ struct ContentView: View {
                 NavigationView {
                     IngredientsView(menuViewModel: menuViewModel)
                         .navigationTitle("Ingredients")
-                    
-                    
-                    
                 }
+                
+                
                 .tabItem {
                     Label("Ingredients", systemImage: "list.bullet")
                 }
@@ -454,7 +503,7 @@ struct ContentView: View {
                 
                 NavigationView {
                     MenuView(menuViewModel: menuViewModel, recipeViewModel: recipeViewModel)
-                        .navigationTitle("Menu")
+                        .navigationTitle("Prepare Your Menu")
                 }
                 
                 .tabItem {
