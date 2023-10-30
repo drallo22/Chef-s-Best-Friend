@@ -91,32 +91,35 @@ struct RecipeDetailsView: View {
     var recipe: Recipe
     
     var body: some View {
-        
-    
-        List {
-              
-            Image(recipe.image)
-            .resizable()
-            .frame(width: 300, height: 250)
-            Section(header: Text("Recipe Details")) {
-                Text("Name: \(recipe.name)")
-                Text("Cooking Time: \(recipe.cookingTime)")
-                Text("Serving Size: \(recipe.servingSize)")
-            }
+        VStack{
             
-            Section(header: Text("Ingredients")) {
-                ForEach(recipe.ingredients, id: \.self) { ingredient in
-                    Text(ingredient)
+            List {
+                Image(recipe.image)
+                    .resizable()
+                    .frame(width: 300, height: 250)
+            
+                Section(header: Text("Recipe Details")) {
+                    Text("Name: \(recipe.name)")
+                    Text("Cooking Time: \(recipe.cookingTime)")
+                    Text("Serving Size: \(recipe.servingSize)")
+                }
+                
+                Section(header: Text("Ingredients")) {
+                    ForEach(recipe.ingredients, id: \.self) { ingredient in
+                        Text(ingredient)
+                    }
+                }
+                
+                Section(header: Text("Preparation Steps")) {
+                    ForEach(recipe.preparationSteps, id: \.self) { step in
+                        Text(step)
+                    }
                 }
             }
-            
-            Section(header: Text("Preparation Steps")) {
-                ForEach(recipe.preparationSteps, id: \.self) { step in
-                    Text(step)
-                }
-            }
-        }
-        .navigationBarTitle(recipe.name)
+            .padding(.top,10)
+            .navigationBarTitle(recipe.name)
+        }.frame(maxWidth: .infinity, maxHeight: .infinity)  //
+            .background(LinearGradient(gradient: Gradient(colors: [Color.brown, Color.white]), startPoint: .top, endPoint: .center).ignoresSafeArea())
     }
 }
 
@@ -170,7 +173,7 @@ struct EditRecipeView: View {
         }
         
         Button(action: {
-                        // Call the saveChanges function to update the recipe
+                        
                         saveChanges()
                     }) {
                         Text("Save Changes")
@@ -181,7 +184,7 @@ struct EditRecipeView: View {
                     }
         
         .onAppear {
-            editedRecipe = recipe // Initialize the editedRecipe with the original recipe's data
+            editedRecipe = recipe
         }
         .navigationBarTitle("Edit Recipe: \(editedRecipe.name)")
     }
@@ -202,6 +205,8 @@ struct SearchRecipesView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)  //
+            .background(LinearGradient(gradient: Gradient(colors: [Color.brown, Color.white]), startPoint: .top, endPoint: .center).ignoresSafeArea())
         .navigationTitle("Search Recipes")
     }
 }
@@ -281,11 +286,11 @@ struct MenuView: View {
     @ObservedObject var recipeViewModel = RecipeViewModel()
 
     var body: some View {
-        NavigationView {
             VStack {
                 TextField("Search Recipes", text: $searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding()
+                    .padding(.top,30)
+                    
                 
                 List {
                     ForEach(recipeViewModel.recipes.filter {
@@ -311,7 +316,11 @@ struct MenuView: View {
                 
                 Text("Selected Recipes")
                     .font(.title)
-                    .padding(.top, 10)
+                    .padding()
+                    .background(Color.brown)
+                    .foregroundColor(.white)
+                    
+                    
                 
                 List(menuViewModel.selectedRecipes, id: \.name) { recipe in
                     Text(recipe.name)
@@ -319,11 +328,12 @@ struct MenuView: View {
                 
                 .listStyle(PlainListStyle())
             }
-            .navigationTitle("Menu")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)  //
+                .background(LinearGradient(gradient: Gradient(colors: [Color.brown, Color.white]), startPoint: .top, endPoint: .center).ignoresSafeArea())
             
         }
     }
-}
+
 
 struct IngredientsView: View {
     @ObservedObject var menuViewModel = MenuViewModel()
@@ -337,25 +347,31 @@ struct IngredientsView: View {
     }
 
     var body: some View {
-        List {
-            ForEach(allSelectedIngredients, id: \.self) { ingredient in
-                Text(ingredient)
-            }
-        }
-        List(menuViewModel.selectedRecipes, id: \.name) { recipe in
-            Text(recipe.name)
-        }
-        .onAppear {
-            print(allSelectedIngredients)
+        VStack{
             
-        }
-        .onAppear {
-            print("Selected Recipes: \(menuViewModel.selectedRecipes)")
-        }
-
-        .navigationTitle("Ingredients")
+                if allSelectedIngredients.isEmpty {
+                    Image("ingredients")
+                    Text("No ingredients needed!")
+                        .font(.title)
+                        .foregroundColor(.black)
+                        .padding()
+                } else {
+                    Image("ingredients")
+                        .resizable()
+                        .frame(width: 200,height: 200)
+                    List {
+                        ForEach(allSelectedIngredients, id: \.self) { ingredient in
+                            Text(ingredient)
+                        }
+                    }
+                    .padding(.top,80)
+                    .listStyle(PlainListStyle())
+                    
+                }
+            
+        }.frame(maxWidth: .infinity, maxHeight: .infinity)  //
+            .background(LinearGradient(gradient: Gradient(colors: [Color.brown, Color.white]), startPoint: .top, endPoint: .center).ignoresSafeArea())
     }
-
 }
 
 
@@ -363,85 +379,90 @@ struct IngredientsView: View {
 struct ContentView: View {
     @ObservedObject var recipeViewModel = RecipeViewModel()
     @StateObject private var menuViewModel = MenuViewModel()
-
+    
     @State private var searchText = ""
     @State private var isAddingRecipe = false // Add this state variable
-
+    
     var body: some View {
-        TabView {
-            // Tab 1: "Home"
-            NavigationView {
-                VStack {
-                    HStack {
-
-                        NavigationLink(
-                            destination: SearchRecipesView(recipes: $recipeViewModel.recipes, searchText: $searchText)) {
-                                Label("Search Recipes", systemImage: "magnifyingglass")
-                                    .foregroundColor(.black)
-                            }
-                        
-                        Button(action: {
+        VStack {
+            TabView {
+                NavigationView {
+                    VStack{
+                        HStack {
+                            
+                            NavigationLink(
+                                destination: SearchRecipesView(recipes: $recipeViewModel.recipes, searchText: $searchText)) {
+                                    Label("Search Recipes", systemImage: "magnifyingglass")
+                                        .foregroundColor(.black)
+                                }
+                            
+                            Button(action: {
                                 isAddingRecipe = true
-                                }) {
-                            Label("Add Recipe", systemImage: "plus.circle")
-                                .foregroundColor(.black)
-                                .frame(width: 200)
-                                               
-                                        }
-                    }
-                    
-                    ScrollView {
-                        ForEach(recipeViewModel.recipes.filter {
-                            searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText)
-                        }, id: \.name) { recipe in
-                            RecipeView(recipe: recipe)
-                                .padding()
+                            }) {
+                                Label("Add Recipe", systemImage: "plus.circle")
+                                    .foregroundColor(.black)
+                                    .frame(width: 200)
+                                
+                            }
+                        }
+                        
+                        ScrollView {
+                            ForEach(recipeViewModel.recipes.filter {
+                                searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText)
+                            }, id: \.name) { recipe in
+                                RecipeView(recipe: recipe)
+                                    .padding()
+                            }
                         }
                     }
+                    .background(LinearGradient(gradient: Gradient(colors: [Color.brown, Color.white]), startPoint: .top,endPoint: .center)
+                        .ignoresSafeArea())
+                    .navigationTitle("Chef's Best Friend")
+                    .sheet(isPresented: $isAddingRecipe) {
+                        AddRecipeView(recipeViewModel: recipeViewModel, isAddingRecipe: $isAddingRecipe)
+                    }
                 }
-                .background(LinearGradient(gradient: Gradient(colors: [Color.gray, Color.white]), startPoint: .top, endPoint: .bottom)
-                    .ignoresSafeArea())
-                .navigationTitle("Chef's Best Friend")
-                .sheet(isPresented: $isAddingRecipe) {
-                    AddRecipeView(recipeViewModel: recipeViewModel, isAddingRecipe: $isAddingRecipe)
+                
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
+                    
                 }
-            }
-            
-            .tabItem {
-                Label("Home", systemImage: "house.fill")
+                .tag(0)
+                
+                // Tab 2: "Search"
+                NavigationView {
+                    SearchRecipesView(recipes: $recipeViewModel.recipes, searchText: $searchText)
+                        .navigationTitle("Search Recipes")
+                }
+                .tabItem {
+                    Label("Search", systemImage: "magnifyingglass")
+                }
+                .tag(1)
+                
+                
+                NavigationView {
+                    IngredientsView(menuViewModel: menuViewModel)
+                        .navigationTitle("Ingredients")
+                    
+                    
+                    
+                }
+                .tabItem {
+                    Label("Ingredients", systemImage: "list.bullet")
+                }
+                .tag(2)
+                
+                NavigationView {
+                    MenuView(menuViewModel: menuViewModel, recipeViewModel: recipeViewModel)
+                        .navigationTitle("Menu")
+                }
+                
+                .tabItem {
+                    Label("Menu", systemImage: "book")
+                }
+                .tag(1)
                 
             }
-            .tag(0)
-
-            // Tab 2: "Search"
-            NavigationView {
-                SearchRecipesView(recipes: $recipeViewModel.recipes, searchText: $searchText)
-                    .navigationTitle("Search Recipes")
-            }
-            .tabItem {
-                Label("Search", systemImage: "magnifyingglass")
-            }
-            .tag(1)
-            
-            
-            NavigationView {
-                IngredientsView(menuViewModel: menuViewModel)
-                    .navigationTitle("Ingredients")
-            }
-            .tabItem {
-                Label("Ingredients", systemImage: "list.bullet")
-            }
-            .tag(2)
-            
-            NavigationView {
-                MenuView(menuViewModel: menuViewModel, recipeViewModel: recipeViewModel)
-                    .navigationTitle("Menu")
-            }
-            .tabItem {
-                Label("Menu", systemImage: "book")
-            }
-            .tag(1)
-            
         }
     }
 }
