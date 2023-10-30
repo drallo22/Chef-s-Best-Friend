@@ -138,36 +138,39 @@ struct EditRecipeView: View {
       }
     
     var body: some View {
-        Form {
-            Section(header: Text("Recipe Information")) {
-                TextField("Name", text: $editedRecipe.name)
-                TextField("Cooking Time", text: $editedRecipe.cookingTime)
-                Stepper("Serving Size: \(editedRecipe.servingSize)", value: $editedRecipe.servingSize, in: 1...10)
-            }
-            
-            Section(header: Text("Ingredients")) {
-                ForEach(0..<editedRecipe.ingredients.count, id: \.self) { index in
-                    TextField("Ingredient \(index + 1)", text: $editedRecipe.ingredients[index])
+        VStack{
+            Form {
+                Section(header: Text("Recipe Information")) {
+                    TextField("Name", text: $editedRecipe.name)
+                    TextField("Cooking Time", text: $editedRecipe.cookingTime)
+                    Stepper("Serving Size: \(editedRecipe.servingSize)", value: $editedRecipe.servingSize, in: 1...10)
                 }
-                Button(action: {
-                    editedRecipe.ingredients.append("")
-                }) {
-                    Text("Add Ingredient")
+                
+                Section(header: Text("Ingredients")) {
+                    ForEach(0..<editedRecipe.ingredients.count, id: \.self) { index in
+                        TextField("Ingredient \(index + 1)", text: $editedRecipe.ingredients[index])
+                    }
+                    Button(action: {
+                        editedRecipe.ingredients.append("")
+                    }) {
+                        Text("Add Ingredient")
+                    }
                 }
-            }
-            
-            Section(header: Text("Preparation Steps")) {
-                ForEach(0..<editedRecipe.preparationSteps.count, id: \.self) { index in
-                    TextField("Step \(index + 1)", text: $editedRecipe.preparationSteps[index])
+                
+                Section(header: Text("Preparation Steps")) {
+                    ForEach(0..<editedRecipe.preparationSteps.count, id: \.self) { index in
+                        TextField("Step \(index + 1)", text: $editedRecipe.preparationSteps[index])
+                    }
+                    Button(action: {
+                        editedRecipe.preparationSteps.append("")
+                    }) {
+                        Text("Add Step")
+                    }
                 }
-                Button(action: {
-                    editedRecipe.preparationSteps.append("")
-                }) {
-                    Text("Add Step")
-                }
-            }
+            }.padding(.top,10)
            
-        }
+        }.frame(maxWidth: .infinity, maxHeight: .infinity)  //
+            .background(LinearGradient(gradient: Gradient(colors: [Color.brown, Color.white]), startPoint: .top, endPoint: .center).ignoresSafeArea())
         
         Button(action: {
                         saveChanges()
