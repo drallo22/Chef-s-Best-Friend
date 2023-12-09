@@ -6,9 +6,15 @@
 //
 
 import SwiftUI
+import FirebaseCore
+import Firebase
 
 @main
 struct Chef_s_Best_FriendApp: App {
+    
+    init() {
+    FirebaseApp.configure()
+    }
     var body: some Scene {
         WindowGroup {
             ContentView()
