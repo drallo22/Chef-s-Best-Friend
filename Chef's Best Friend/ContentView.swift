@@ -8,7 +8,7 @@ struct Recipe {
     var servingSize: Int
     var image : String
 }
-
+//test
 class RecipeViewModel: ObservableObject {
     @Published var recipes: [Recipe] = []
 
