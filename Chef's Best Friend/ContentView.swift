@@ -1,51 +1,95 @@
 import SwiftUI
 
-struct Recipe {
+struct Recipe: Identifiable, Codable {
+    var id: String?
     var name: String
     var ingredients: [String]
     var preparationSteps: [String]
     var cookingTime: String
     var servingSize: Int
-    var image : String
+    var image: String
+    
+    var dictionary: [String: Any] {
+           return [
+               "name": name,
+               "ingredients": ingredients,
+               "preparationSteps": preparationSteps,
+               "cookingTime": cookingTime,
+               "servingSize": servingSize,
+               "image": image
+           ]
+       }
 }
-//test
 class RecipeViewModel: ObservableObject {
     @Published var recipes: [Recipe] = []
 
-    init() {
-        recipes = [
-            Recipe(
-                name: "Carbonara",
-                ingredients: ["Eggs", "Pasta"],
-                preparationSteps: ["Boil Pasta", "Add egg"],
-                cookingTime: "30 minutes",
-                servingSize: 4,
-                image: "carbonara"
-            ),
-            Recipe(
-                name: "Meatballs",
-                ingredients: ["Minced Veal", "Breadcrumbs"],
-                preparationSteps: ["Form meat into ball", "Surround in breadcrumbs"],
-                cookingTime: "20 minutes",
-                servingSize: 2,
-                image: "meatballs"
+    private var firestoreAdapter = FirestoreAdapter()
 
-            ),
-        ]
+    init() {
+        loadRecipes()
     }
 
+
+    
     func updateRecipe(recipe: Recipe) {
-        if let index = recipes.firstIndex(where: { $0.name == recipe.name }) {
-            recipes[index] = recipe
+        
+        print("Updating recipe with name: \(recipe.name)")
+            print("Recipe dictionary: \(recipe.dictionary)")
+            firestoreAdapter.updateDocument(collectionName: "recipes", documentId: recipe.name, fields: recipe.dictionary) { error in
+                if let error = error {
+                    print("Error updating recipe: \(error)")
+                } else {
+                    print("Recipe updated successfully")
+                }
+            }
+        
+        loadRecipes()
+        }
+
+     func loadRecipes() {
+        firestoreAdapter.getDocuments(collectionName: "recipes") { result in
+            switch result {
+            case .success(let documents):
+                print("Recipes loaded")
+                let recipes = documents.compactMap { document in
+                    try? document.data(as: Recipe.self)
+                    
+                }
+                self.recipes = recipes
+                print(recipes.count)
+
+                
+            case .failure(let error):
+                print("Error loading recipes: \(error)")
+            }
         }
     }
+    
+    func deleteRecipe(recipe: Recipe) {
+            firestoreAdapter.deleteDocument(collectionName: "recipes", documentId: recipe.name) { error in
+                if let error = error {
+                    print("Error deleting recipe: \(error)")
+                } else {
+                    // Remove the deleted recipe from the local array
+                    self.recipes.removeAll { $0.name == recipe.name }
+                    print("Recipe deleted successfully")
+                
+
+                }
+            }
+        }
+
 }
 
 
 struct RecipeView: View {
     var recipe: Recipe
+    @ObservedObject var recipeViewModel: RecipeViewModel // Inject the RecipeViewModel
+    
+   
     
     var body: some View {
+        
         NavigationLink(destination: RecipeDetailsView(recipe: recipe)) {
             VStack {
                 Image("\(recipe.image)")
@@ -60,16 +104,19 @@ struct RecipeView: View {
                     .padding()
                 
                 HStack {
-                    NavigationLink(destination: EditRecipeView(recipe: recipe)) {
+                    
                         NavigationLink(
-                            destination: EditRecipeView(recipe: recipe)) {
+                            destination: EditRecipeView(recipe: recipe, recipeViewModel: RecipeViewModel())) {
                                 Label("Edit Recipe", systemImage: "pencil")
                                     .foregroundColor(.black).padding(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 150))
                                 
-                            }
+                            
                     }
                     
                     Button(action: {
+                        
+                        recipeViewModel.deleteRecipe(recipe: recipe)
+
                     }) {
                         Label("Delete", systemImage: "trash")
                             .foregroundColor(.black)
@@ -82,6 +129,8 @@ struct RecipeView: View {
             .shadow(radius: 5)
         }
     }
+    
+    
 }
 
 struct RecipeDetailsView: View {
@@ -121,73 +170,74 @@ struct RecipeDetailsView: View {
 }
 
 
-struct EditRecipeView: View {
-   
-    @EnvironmentObject var recipeViewModel: RecipeViewModel
 
-    @State private var editedRecipe: Recipe
+
+struct EditRecipeView: View {
+    @ObservedObject var recipeViewModel: RecipeViewModel
+    @State  var editedRecipe: Recipe
     var recipe: Recipe
-    
-    init(recipe: Recipe) {
+
+    init(recipe: Recipe, recipeViewModel:RecipeViewModel) {
+        print("EditRecipeView initialized with recipe: \(recipe.name)")
+        self.recipeViewModel = recipeViewModel
         self.recipe = recipe
         _editedRecipe = State(initialValue: recipe)
     }
-    
+
     func saveChanges() {
-          recipeViewModel.updateRecipe(recipe: editedRecipe)
-      }
-    
+        print("Before updateRecipe")
+        recipeViewModel.updateRecipe(recipe: editedRecipe)
+        recipeViewModel.loadRecipes()
+        print("After updateRecipe")
+       
+    }
+
     var body: some View {
-        VStack{
-            Form {
-                Section(header: Text("Recipe Information")) {
-                    TextField("Name", text: $editedRecipe.name)
-                    TextField("Cooking Time", text: $editedRecipe.cookingTime)
-                    Stepper("Serving Size: \(editedRecipe.servingSize)", value: $editedRecipe.servingSize, in: 1...10)
-                }
-                
-                Section(header: Text("Ingredients")) {
-                    ForEach(0..<editedRecipe.ingredients.count, id: \.self) { index in
-                        TextField("Ingredient \(index + 1)", text: $editedRecipe.ingredients[index])
+        NavigationView {
+            VStack {
+                Form {
+                    Section(header: Text("Recipe Information")) {
+                        TextField("Cooking Time", text: $editedRecipe.cookingTime)
+                        Stepper("Serving Size: \(editedRecipe.servingSize)", value: $editedRecipe.servingSize, in: 1...10)
+                    }
+
+                    Section(header: Text("Ingredients")) {
+                        ForEach(0..<editedRecipe.ingredients.count, id: \.self) { index in
+                            TextField("Ingredient \(index + 1)", text: $editedRecipe.ingredients[index])
+                        }
+                        Button(action: {
+                            editedRecipe.ingredients.append("")
+                        }) {
+                            Text("Add Ingredient")
+                        }
+                    }
+
+                    Section(header: Text("Preparation Steps")) {
+                        ForEach(0..<editedRecipe.preparationSteps.count, id: \.self) { index in
+                            TextField("Step \(index + 1)", text: $editedRecipe.preparationSteps[index])
+                        }
+                        Button(action: {
+                            editedRecipe.preparationSteps.append("")
+                        }) {
+                            Text("Add Step")
+                        }
+                        
+                        
                     }
                     Button(action: {
-                        editedRecipe.ingredients.append("")
-                    }) {
-                        Text("Add Ingredient")
-                    }
-                }
-                
-                Section(header: Text("Preparation Steps")) {
-                    ForEach(0..<editedRecipe.preparationSteps.count, id: \.self) { index in
-                        TextField("Step \(index + 1)", text: $editedRecipe.preparationSteps[index])
-                    }
-                    Button(action: {
-                        editedRecipe.preparationSteps.append("")
-                    }) {
-                        Text("Add Step")
-                    }
-                }
-            }.padding(.top,10)
-           
-        }.frame(maxWidth: .infinity, maxHeight: .infinity)  //
-            .background(LinearGradient(gradient: Gradient(colors: [Color.brown, Color.white]), startPoint: .top, endPoint: .center).ignoresSafeArea())
-        
-        Button(action: {
                         saveChanges()
-                    }) {
+                    }){
                         Text("Save Changes")
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
                     }
-        
-        .onAppear {
-            editedRecipe = recipe
+                }
+                .navigationBarTitle("Edit Recipe: \(editedRecipe.name)")
+
+            }
         }
-        .navigationBarTitle("Edit Recipe: \(editedRecipe.name)")
     }
 }
+
+
 struct SearchRecipesView: View {
     @Binding var recipes: [Recipe]
     @Binding var searchText: String
@@ -201,7 +251,7 @@ struct SearchRecipesView: View {
             
             ScrollView{
                 ForEach(recipes.filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }, id: \.name) { recipe in
-                    RecipeView(recipe: recipe)
+                    RecipeView(recipe: recipe, recipeViewModel: RecipeViewModel())
                         .padding()
                 }
             }
@@ -216,41 +266,18 @@ struct SearchRecipesView: View {
 struct AddRecipeView: View {
     @ObservedObject var recipeViewModel: RecipeViewModel
     @Binding var isAddingRecipe: Bool
-    @State private var newRecipe: Recipe = Recipe(name: "", ingredients: [], preparationSteps: [], cookingTime: "", servingSize: 1, image: "")
-    @State private var selectedImage: Image?
+    @State  var newRecipe: Recipe = Recipe(name: "", ingredients: [], preparationSteps: [], cookingTime: "", servingSize: 1, image: "")
 
-    @State private var addImage = false
+
+     var firestoreAdapter = FirestoreAdapter()
 
     var body: some View {
         NavigationView {
             Form {
                 Section(header: Text("Add an image")) {
-                    Button(action: {
-                        addImage=true
-                        openFilePicker()
-                                }) {
-                                    Text("Select Image")
-                                }
-                                
-                        .fileImporter(isPresented: .constant(addImage), allowedContentTypes: [.image]) { result in
-                            do {
-                                let fileURL = try result.get()
-                                
-                                if let image = loadImage(from: fileURL) {
-                                    selectedImage = Image(uiImage: image)
-                                }
-                            } catch {
-                                print("Error: \(error)")
-                            }
-                        }
 
-                        // Display the selected image
-                        if let selectedImage = selectedImage {
-                            selectedImage
-                                .resizable()
-                                .frame(width: 200, height: 200)
-                        }
-                   
+                        TextField("Image", text: $newRecipe.image)
+
                 }
                 Section(header: Text("Recipe Information")) {
                     TextField("Name", text: $newRecipe.name)
@@ -279,33 +306,37 @@ struct AddRecipeView: View {
                         Text("Add Step")
                     }
                 }
-                
-               
             }
             .navigationBarTitle("Add Recipe")
             .navigationBarItems(trailing:
                 Button("Save") {
+                    addNewRecipeToDatabase()
+
                     recipeViewModel.recipes.append(newRecipe)
+
                     isAddingRecipe = false
                 }
             )
         }
     }
-    
-    func loadImage(from fileURL: URL) -> UIImage? {
-           do {
-               let data = try Data(contentsOf: fileURL)
-               return UIImage(data: data)
-           } catch {
-               print("Error loading image: \(error)")
-               return nil
-           }
-       }
 
-       func openFilePicker() {
-           
-       }
+     func addNewRecipeToDatabase() {
+
+        firestoreAdapter.addDocument(collectionName: "recipes", model: newRecipe) { result in
+            switch result {
+            case .success(let documentReference):
+                print("Document added with ID: \(documentReference.documentID)")
+            case .failure(let error):
+                print("Error adding document: \(error)")
+            }
+        }
+    }
+
+
+
+    
 }
+
 
 
 
@@ -433,12 +464,14 @@ struct IngredientsView: View {
 
 
 struct ContentView: View {
-    @ObservedObject var recipeViewModel = RecipeViewModel()
+    @ObservedObject  var recipeViewModel = RecipeViewModel()
     @StateObject private var menuViewModel = MenuViewModel()
+
     
     @State private var searchText = ""
     @State private var isAddingRecipe = false
     
+   
     var body: some View {
         VStack {
             TabView {
@@ -460,13 +493,20 @@ struct ContentView: View {
                                     .frame(width: 200)
                                 
                             }
+                           
                         }
                         
                         ScrollView {
+                            Button("Refresh") {
+                                            recipeViewModel.loadRecipes()
+                                        }
                             ForEach(recipeViewModel.recipes, id: \.name) { recipe in
-                                RecipeView(recipe: recipe)
+                                RecipeView(recipe: recipe, recipeViewModel: RecipeViewModel())
                                     .padding()
                             }
+                            
+                        }.onAppear(){
+                            recipeViewModel.loadRecipes()
                         }
                     }
                     .background(LinearGradient(gradient: Gradient(colors: [Color.brown, Color.white]), startPoint: .top,endPoint: .center)
@@ -515,6 +555,9 @@ struct ContentView: View {
                 .tag(1)
                 
             }
+        }.onAppear(){
+            recipeViewModel.loadRecipes()
+
         }
     }
 }

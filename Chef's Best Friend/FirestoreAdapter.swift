@@ -10,42 +10,37 @@ class FirestoreAdapter {
     }
 
     // Add a new document with a specific ID or let Firestore auto-generate the ID
+    // Add a new document with the name of the recipe as the document ID
     func addDocument<T: Codable>(
         collectionName: String,
         model: T,
-        documentId: String? = nil,
         completion: @escaping (Result<DocumentReference, Error>) -> Void
     ) {
         do {
-            var reference: DocumentReference? = nil
+            // Extract the name property from the model (assuming it has a 'name' property)
+            guard let recipeName = (model as? Recipe)?.name else {
+                // Handle the case where the model doesn't have a 'name' property
+                let error = NSError(domain: "YourDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Recipe model must have a 'name' property."])
+                completion(.failure(error))
+                return
+            }
 
-            // Check if document ID is provided
-            if let documentId = documentId {
-                // Set the document with a specific ID
-                reference = db.collection(collectionName).document(documentId)
+            // Use the recipe name as the document ID
+            let reference = try db.collection(collectionName).document(recipeName)
 
-                try reference?.setData(from: model) { error in
-                    if let error = error {
-                        completion(.failure(error))
-                    } else if let reference = reference {
-                        completion(.success(reference)) // Success
-                    }
-                }
-            } else {
-                // Let Firestore auto-generate the document ID
-                reference = try db.collection(collectionName).addDocument(from: model) { error in
-
-                    if let error = error {
-                        completion(.failure(error))
-                    } else if let reference = reference {
-                        completion(.success(reference)) // Success
-                    }
+            // Set the document data
+            try reference.setData(from: model) { error in
+                if let error = error {
+                    completion(.failure(error))
+                } else {
+                    completion(.success(reference)) // Success
                 }
             }
         } catch let error {
             completion(.failure(error))
         }
     }
+
 
     // Create or set a document
     func setDocument<T: Codable>(collectionName: String,
@@ -95,9 +90,15 @@ class FirestoreAdapter {
 
         let docRef = db.collection(collectionName).document(documentId)
         docRef.updateData(fields) { error in
+            if let error = error {
+                print("Error updating document \(documentId): \(error)")
+            } else {
+                print("Document \(documentId) updated successfully.")
+            }
             completion(error)
         }
     }
+
 
     // Delete a document
     func deleteDocument(collectionName: String,
